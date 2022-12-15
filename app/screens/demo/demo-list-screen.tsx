@@ -33,35 +33,22 @@ const styles = StyleSheet.create({
 })
 
 export const DemoListScreen: FC<StackScreenProps<NavigatorParamList, "demoList">> = observer(() => {
-  const {
-    characterStore: { loadCharacters, characters, status, errorMessage },
-  } = useStores()
-
-  useFocusEffect(
-    useCallback(() => {
-      async function fetchData() {
-        await loadCharacters()
-      }
-
-      fetchData()
-    }, [loadCharacters]),
-  )
+  const { incidentsStore } = useStores()
 
   return (
     <View testID={TEST_IDS.demoListScreen} style={styles.mainContainer}>
       <Wallpaper />
-      {status === "pending" && <ActivityIndicator />}
-      {status === "error" && <Text>Error occured while attempting to query characters ${errorMessage}</Text>}
       <Screen style={styles.container} preset="fixed">
         <FlatList
+          ListHeaderComponent={() => <Text>TOTAL INCIDENTS IS: {incidentsStore.incidents.length}</Text>}
           contentContainerStyle={styles.flatList}
-          data={characters}
+          data={incidentsStore.incidents}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <View style={styles.listContainer}>
               <Image source={{ uri: item.image }} style={styles.image} />
               <Text style={styles.listText}>
-                {item.name} ({item.status})
+                {item.name} ({item.visibility})
               </Text>
             </View>
           )}

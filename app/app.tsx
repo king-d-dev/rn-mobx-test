@@ -19,7 +19,7 @@ import { useFonts } from "expo-font"
 // import * as Sentry from "@sentry/react-native"
 
 import { AppNavigator, navigationRef } from "./navigators"
-import { RootStore, RootStoreProvider, setupRootStore } from "./models"
+import { RootStore, RootStoreProvider } from "./models"
 import { ErrorBoundary } from "./screens/error/error-boundary"
 
 // This puts screens in a native ViewController or Activity. If you want fully native
@@ -29,13 +29,15 @@ import { enableScreens } from "react-native-screens"
 enableScreens()
 
 export const NAVIGATION_PERSISTENCE_KEY = "NAVIGATION_STATE"
+let count = 0
 
 /**
  * This is the root component of our app.
  */
 function App() {
+  const rootStore = new RootStore()
   const routeNameRef = useRef<string>()
-  const [rootStore, setRootStore] = useState<RootStore | undefined>(undefined)
+  // const [rootStore, setRootStore] = useState<RootStore>()
 
   const [fontsLoaded] = useFonts({
     "SourceSansPro-600": require("../assets/fonts/SourceSansPro-600.ttf"),
@@ -44,7 +46,7 @@ function App() {
 
   useEffect(() => {
     const init = async () => {
-      setupRootStore().then(setRootStore)
+      // setupRootStore().then(setRootStore)
     }
     init()
 
@@ -61,6 +63,8 @@ function App() {
   // In Android: https://stackoverflow.com/a/45838109/204044
   // You can replace with your own loading component if you wish.
   if (!rootStore || !fontsLoaded) return null
+
+  console.log("RENDING APP", count++)
 
   // otherwise, we're ready to render the app
   return (

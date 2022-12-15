@@ -3,7 +3,11 @@ module.exports = {
   env: {
     production: {},
   },
+  assumptions: {
+    setPublicClassFields: false,
+  },
   plugins: [
+    ["@babel/plugin-proposal-class-properties"],
     [
       "@babel/plugin-proposal-decorators",
       {
