@@ -1,0 +1,63 @@
+name: Publish iOS to Testflight
+on:
+  workflow_dispatch:
+    inputs:
+        versionName:
+          description: 'Override Version name (if not set, existing version will be used)'
+        buildNumber:
+          description: 'Override Build number (if not set, it will increment by 1)'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploying to Testflight
+    runs-on: [self-hosted, ios]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: lts/-1
+      - run: npm run ios:clean
+
+      - name: Load GoogleService-Info.plist from secrets
+        env:
+          GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          echo importing Google Firebase plist secret file
+          echo $GOOGLE_SERVICE_INFO_PLIST > ./GoogleService-Info.plist
+        working-directory: ./ios
+
+      - name: Setup fastlane and cocoapods
+        run: |
+          rm -rf Gemfile.lock
+          bundle install
+        working-directory: ./ios
+
+      - name: Install NPM & Pod packages
+        run: npm ci
+
+      - name: Deploy iOS Beta to TestFlight via Fastlane
+        uses: maierj/fastlane-action@v2.2.1
+        with:
+          subdirectory: 'ios'
+          lane: closed_beta
+          options: '{ "version_name": "${{ github.event.inputs.versionName }}", "build_number": "${{ github.event.inputs.buildNumber }}" }'
+        env:
+          APP_STORE_CONNECT_TEAM_ID: "${{ secrets.APP_STORE_CONNECT_TEAM_ID }}"
+          DEVELOPER_APP_ID: "${{ secrets.DEVELOPER_APP_ID }}"
+          DEVELOPER_APP_IDENTIFIER: "${{ secrets.DEVELOPER_APP_IDENTIFIER }}"
+          DEVELOPER_PORTAL_TEAM_ID: "${{ secrets.DEVELOPER_PORTAL_TEAM_ID }}"
+          FASTLANE_APPLE_ID: "${{ secrets.FASTLANE_APPLE_ID }}"
+          MATCH_PASSWORD: "${{ secrets.MATCH_PASSWORD }}"
+          GIT_AUTHORIZATION: "${{ secrets.GIT_AUTHORIZATION }}"
+          TEMP_KEYCHAIN_PASSWORD: "${{ secrets.TEMP_KEYCHAIN_PASSWORD }}"
+          TEMP_KEYCHAIN_NAME: "${{ secrets.TEMP_KEYCHAIN_NAME }}"
+          APPLE_KEY_ID: "${{ secrets.APPLE_KEY_ID }}"
+          APPLE_ISSUER_ID: "${{ secrets.APPLE_ISSUER_ID }}"
+          APPLE_KEY_CONTENT: "${{ secrets.APPLE_KEY_CONTENT }}"
+          PROJECT_NAME: "BaseReactNative"
+          SCHEME: "BaseReactNative"

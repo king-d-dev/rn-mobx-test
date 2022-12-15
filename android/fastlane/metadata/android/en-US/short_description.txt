@@ -1,0 +1,1 @@
+A basic template with commonly used libraries

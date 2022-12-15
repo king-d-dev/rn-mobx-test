@@ -1,0 +1,1 @@
+An Akadenia Ignite Bowser React Native template in Typescript with our favorite commonly used libraries.

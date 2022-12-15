@@ -1,0 +1,56 @@
+name: Publish Android to Google
+on:
+  # Allows you to run this workflow manually from the Actions a tab
+  workflow_dispatch:
+    inputs:
+        versionName:
+          description: 'Override Version name (if not set, existing version will be used)'
+        buildNumber:
+          description: 'Override Build number (if not set, it will increment by 1)'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploying to Google Play Store
+    runs-on: [self-hosted, android]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: lts/-1
+      - run: npm ci
+      - run: npm run android:clean
+
+      - name: Load google-services.json from secrets
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo importing Google Firebase Services json secret file
+          echo $GOOGLE_SERVICES_JSON > ./google-services.json
+        working-directory: ./android
+
+      - name: Load JSON from secrets
+        env:
+          PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
+        run: |
+          echo importing JSON secret file
+          echo $PLAY_STORE_JSON_KEY > ./api-5539523818856151607-385450-39ffa2924b68.json
+        working-directory: ./android
+
+      - name: Deploy iOS Beta to TestFlight via Fastlane
+        uses: maierj/fastlane-action@v2.2.1
+        with:
+          subdirectory: 'android'
+          lane: closed_beta
+          options: '{ "version_name": "${{ github.event.inputs.versionName }}", "build_number": "${{ github.event.inputs.buildNumber }}" }'
+        env:
+          DEVELOPER_APP_IDENTIFIER: "${{ secrets.DEVELOPER_APP_IDENTIFIER }}"
+          PLAY_STORE_PASSWORD: "${{ secrets.PLAY_STORE_PASSWORD }}"
+          PLAY_STORE_KEY_PASSWORD: "${{ secrets.PLAY_STORE_KEY_PASSWORD }}"
+          PLAY_STORE_KEY_ALIAS: "${{ secrets.PLAY_STORE_KEY_ALIAS }}"
+          PROJECT_NAME: "BaseReactNative"
+          SCHEME: "BaseReactNative"

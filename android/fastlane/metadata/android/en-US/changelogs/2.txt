@@ -1,0 +1,3 @@
+* Upgrade the template to React Native 0.64.0
+* Bump Android target api to 30
+* Upgrade all libraries to latest version

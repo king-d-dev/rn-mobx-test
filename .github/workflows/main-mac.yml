@@ -1,0 +1,55 @@
+# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Main Branch E2E
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - feature/**
+      - feat/**
+      - bugfix/**
+      - hotfix/**
+      - release/**
+
+  workflow_dispatch:
+
+env:
+  CI: true
+  NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, ios]
+
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: lts/-1
+      - run: npm ci
+
+      - name: Run Tests
+        uses: ArtiomTr/jest-coverage-report-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          package-manager: npm
+          skip-step: install
+          annotations: failed-test
+
+      - name: Build Detox e2e
+        run: npm run ci:build:e2e
+
+      - name: Test Detox e2e
+        run: npm run ci:test:e2e

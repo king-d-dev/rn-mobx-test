@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+/**
+ * Do all things that need to be done after installing packages (with yarn, npm, pnpm).
+ *
+ * Yes, it slows down package installation a little, but it's nice to not
+ * have to remember these extra steps.
+ */
+
+// Patch any packages that need patching
+run("if [ ! -f package-lock.json ]; then npm install --package-lock-only --ignore-scripts --no-audit; fi; npx npm-force-resolutions")
+
+
+// Run baby run
+function run(command) {
+  console.log(`./bin/preInstall script running: ${command}`)
+
+  try {
+    require("child_process").execSync(command, { stdio: "inherit" })
+  } catch (error) {
+    console.error(`./bin/preInstall failed on command:\n  ${command}`)
+    process.exit(error.status)
+  }
+}
+

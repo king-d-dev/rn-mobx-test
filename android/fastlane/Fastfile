@@ -1,0 +1,125 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+STORE_PASSWORD = ENV["PLAY_STORE_PASSWORD"]
+KEY_PASSWORD = ENV["PLAY_STORE_KEY_PASSWORD"]
+KEY_ALIAS = ENV["PLAY_STORE_KEY_ALIAS"]
+DEVELOPER_APP_IDENTIFIER = ENV["DEVELOPER_APP_IDENTIFIER"]
+
+error do |lane, exception|
+  reset_git_repo(force: true)
+end
+
+platform :android do
+  desc "Runs all the tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  lane :closed_beta do |options|
+    store_password = STORE_PASSWORD
+    key_password = KEY_PASSWORD
+    key_alias = KEY_ALIAS
+    releaseFilePath = File.join(Dir.pwd, "..", "basereactnative.jks")
+    gradle_file_path = "./app/build.gradle"
+    json_key_file_path = "./api-5539523818856151607-385450-6d2fc5a0c9a4.json"
+    version_name = options[:version_name]
+    build_number = options[:build_number]
+    app_identifier = DEVELOPER_APP_IDENTIFIER
+
+    if !version_name.nil? && !version_name.empty?
+      android_set_version_name(
+        gradle_file: gradle_file_path,
+        version_name: version_name
+      )
+    else
+      version_name = android_get_version_name()
+    end
+
+    if build_number.nil? || build_number.empty?
+      previous_build_number = google_play_track_version_codes(
+        package_name: app_identifier,
+        track: "internal",
+        json_key: json_key_file_path,
+      )[0]
+
+      build_number = previous_build_number + 1
+    end
+
+    android_set_version_code(
+      gradle_file: gradle_file_path,
+      version_code: build_number
+    )
+
+    gradle(
+      task: 'bundle',
+      build_type: 'Release',
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => releaseFilePath,
+        "android.injected.signing.store.password" => store_password,
+        "android.injected.signing.key.alias" => key_alias,
+        "android.injected.signing.key.password" => key_password,
+      },
+    )
+
+    upload_to_play_store(
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      skip_upload_apk: true,
+      track: 'internal',      
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true)
+
+    git_commit(path: ["app/build.gradle"], message: "Published to PlayStore. Android #{version_name} (Build #{lane_context[SharedValues::BUILD_NUMBER]})")
+    add_git_tag(grouping: "fastlane-builds", includes_lane: true, tag: "v#{version_name}.#{lane_context[SharedValues::BUILD_NUMBER]}-android")
+    push_to_git_remote()
+
+    reset_git_repo(force: true)
+  end
+
+  desc "Submit a new Beta Build to Internal Testing"
+  lane :beta do
+    store_password = prompt(text: "Signing Store Password: ", secure_text: true)
+    key_password = store_password || prompt(text: "Alias Key Password: ", secure_text: true)
+    releaseFilePath = File.join(Dir.pwd, "..", "basereactnative.jks")
+    increment_version_code(
+      gradle_file_path: "./app/build.gradle",
+    )
+    gradle(task: 'clean')
+    gradle(
+      task: 'bundle',
+      build_type: 'Release',
+      print_command: false,
+      properties: {
+        "android.injected.signing.store.file" => releaseFilePath,
+        "android.injected.signing.store.password" => store_password,
+        "android.injected.signing.key.alias" => "Akadenia",
+        "android.injected.signing.key.password" => key_password,
+      }
+    )
+
+    upload_to_play_store(
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      skip_upload_apk: true,
+      track: 'internal',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true)
+  end
+  
+end

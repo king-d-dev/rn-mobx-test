@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "74222438745",
+    "project_id": "basereactnative-875bf",
+    "storage_bucket": "basereactnative-875bf.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:74222438745:android:d65bb5e068f92c6246e448",
+        "android_client_info": {
+          "package_name": "com.chlela.basereactnative"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "74222438745-8rtbkccfbh93ii0hmpj3qll7bnddkgvp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBP75I0tLfT6OMZh1ldTenKNAnewkV4uK8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "74222438745-8rtbkccfbh93ii0hmpj3qll7bnddkgvp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "74222438745-4c2493jlkeblpfs1tapb6kem5ituuigu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.chlela.basereactnative"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

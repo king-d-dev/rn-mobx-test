@@ -1,0 +1,168 @@
+default_platform(:ios)
+
+DEVELOPER_APP_ID = ENV["DEVELOPER_APP_ID"]
+DEVELOPER_APP_IDENTIFIER = ENV["DEVELOPER_APP_IDENTIFIER"]
+TEMP_KEYCHAIN_NAME = ENV["TEMP_KEYCHAIN_NAME"]
+TEMP_KEYCHAIN_PASSWORD = ENV["TEMP_KEYCHAIN_PASSWORD"]
+APPLE_ISSUER_ID = ENV["APPLE_ISSUER_ID"]
+APPLE_KEY_ID = ENV["APPLE_KEY_ID"]
+APPLE_KEY_CONTENT = ENV["APPLE_KEY_CONTENT"]
+GIT_AUTHORIZATION = ENV["GIT_AUTHORIZATION"]
+PROJECT_NAME = ENV["PROJECT_NAME"]
+SCHEME = ENV["SCHEME"]
+
+def delete_temp_keychain(name)
+  delete_keychain(
+    name: name
+  ) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+def create_temp_keychain(name, password)
+  create_keychain(
+    name: name,
+    password: password,
+    unlock: true,
+    timeout: 1200,
+    add_to_search_list: true,
+    lock_when_sleeps: true,
+    default_keychain: true,
+  )
+end
+
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
+end
+
+after_each do |lane, options|
+  delete_temp_keychain(TEMP_KEYCHAIN_NAME)
+end
+
+error do |lane, exception|
+  delete_temp_keychain(TEMP_KEYCHAIN_NAME)
+  clean_build_artifacts
+  clear_derived_data
+  reset_git_repo
+end
+
+platform :ios do
+  lane :tests do
+    run_tests(scheme: "#{SCHEME}")
+  end
+
+  lane :closed_beta do |options|
+    keychain_name = TEMP_KEYCHAIN_NAME
+    keychain_password = TEMP_KEYCHAIN_PASSWORD
+    version_name = options[:version_name]
+    build_number = options[:build_number]
+    app_identifier =  DEVELOPER_APP_IDENTIFIER
+
+    ensure_temp_keychain(keychain_name, keychain_password)
+
+    api_key = app_store_connect_api_key(
+      key_id: APPLE_KEY_ID,
+      issuer_id: APPLE_ISSUER_ID,
+      key_content: APPLE_KEY_CONTENT,
+      duration: 1200,
+      in_house: false
+    )
+    
+    if !version_name.nil? && !version_name.empty?
+      increment_version_number(
+        version_number: version_name,
+        xcodeproj: "#{PROJECT_NAME}.xcodeproj"
+      )
+    else
+      version_name = get_version_number(xcodeproj: "#{PROJECT_NAME}.xcodeproj")
+    end
+
+    if build_number.nil? || build_number.empty?
+      previous_build_number = latest_testflight_build_number(
+        app_identifier: app_identifier,
+        api_key: api_key,
+      )
+      build_number = previous_build_number + 1
+    end
+
+    increment_build_number(
+      xcodeproj: "#{PROJECT_NAME}.xcodeproj",
+      skip_info_plist: true, 
+      build_number: build_number
+    )
+
+    unlock_keychain(
+      path: keychain_name,
+      password: keychain_password
+    )
+
+    match(
+      type: 'appstore',
+      git_basic_authorization: Base64.strict_encode64(GIT_AUTHORIZATION),
+      readonly: true,
+      api_key: api_key,
+      fail_on_name_taken: true,
+      verbose: false,
+      skip_docs: true,
+      app_identifier: app_identifier,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+
+    gym(
+      configuration: "Release",
+      workspace: "#{PROJECT_NAME}.xcworkspace",
+      scheme: SCHEME,
+      clean: true,
+      silent: true,
+      include_symbols: true,
+      build_path: "./build/archive",
+      derived_data_path: "./build",
+      output_directory: "./build/output",
+      export_options: {
+        method: lane_context[SharedValues::SIGH_PROFILE_TYPE],
+        provisioningProfiles: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+      }
+    )
+
+    upload_symbols_to_crashlytics(dsym_path: lane_context[SharedValues::DSYM_OUTPUT_PATH], gsp_path: "./GoogleService-Info.plist")
+
+    pilot(
+      apple_id: DEVELOPER_APP_ID,
+      app_identifier: app_identifier,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false,
+      notify_external_testers: false,
+      ipa: lane_context[SharedValues::IPA_OUTPUT_PATH]
+    )
+
+    git_commit(path: ["*.plist", "*.pbxproj"], message: "Published to TestFlight. iOS #{version_name} (Build #{lane_context[SharedValues::BUILD_NUMBER]})")
+    add_git_tag(grouping: "fastlane-builds", includes_lane: true, tag: "v#{version_name}.#{lane_context[SharedValues::BUILD_NUMBER]}-ios",)
+    push_to_git_remote()
+
+    clean_build_artifacts
+    clear_derived_data
+    reset_git_repo(force: true)
+  end
+
+  lane :manual_beta do
+    build
+    upload
+  end
+
+  lane :build do
+    cocoapods
+    increment_build_number({
+      build_number: latest_testflight_build_number + 1,
+      xcodeproj: "BaseReactNative.xcodeproj"
+    })
+    build_app(workspace: "BaseReactNative.xcworkspace", scheme: "BaseReactNative", export_options: { method: "app-store" })
+  end
+
+  lane :upload do
+    upload_symbols_to_crashlytics(dsym_path: "./BaseReactNative.app.dSYM.zip", gsp_path: "./GoogleService-Info.plist", debug: true)
+
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+
+end
