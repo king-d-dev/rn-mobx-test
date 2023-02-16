@@ -1,7 +1,6 @@
-import React, { useCallback, FC } from "react"
-import { Image, FlatList, View, StyleSheet, ActivityIndicator } from "react-native"
+import React, { FC } from "react"
+import { Image, FlatList, View, StyleSheet } from "react-native"
 import { StackScreenProps } from "@react-navigation/stack"
-import { useFocusEffect } from "@react-navigation/native"
 import { observer } from "mobx-react-lite"
 import { Screen, Text, Wallpaper } from "@components"
 import { color, spacing } from "@theme"
@@ -10,6 +9,7 @@ import { NavigatorParamList } from "../../navigators"
 import { TEST_IDS } from "@constants"
 
 import sharedStyles from "@styles/shared"
+import { uuidv4 } from "@utils"
 
 const styles = StyleSheet.create({
   ...sharedStyles,
@@ -40,10 +40,15 @@ export const DemoListScreen: FC<StackScreenProps<NavigatorParamList, "demoList">
       <Wallpaper />
       <Screen style={styles.container} preset="fixed">
         <FlatList
-          ListHeaderComponent={() => <Text>TOTAL INCIDENTS IS: {incidentsStore.incidents.length}</Text>}
+          ListHeaderComponent={() => (
+            <View>
+              <Text>TOTAL INCIDENTS IS: {incidentsStore.incidents.length}</Text>
+              <Text>INCIDENTS LOADED FROM: {incidentsStore.api.config.url}</Text>
+            </View>
+          )}
           contentContainerStyle={styles.flatList}
           data={incidentsStore.incidents}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={() => uuidv4()}
           renderItem={({ item }) => (
             <View style={styles.listContainer}>
               <Image source={{ uri: item.image }} style={styles.image} />

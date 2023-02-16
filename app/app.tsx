@@ -29,7 +29,6 @@ import { enableScreens } from "react-native-screens"
 enableScreens()
 
 export const NAVIGATION_PERSISTENCE_KEY = "NAVIGATION_STATE"
-let count = 0
 
 /**
  * This is the root component of our app.
@@ -63,8 +62,6 @@ function App() {
   // In Android: https://stackoverflow.com/a/45838109/204044
   // You can replace with your own loading component if you wish.
   if (!rootStore || !fontsLoaded) return null
-
-  console.log("RENDING APP", count++)
 
   // otherwise, we're ready to render the app
   return (
